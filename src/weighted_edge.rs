@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Copy, Debug, Clone, PartialEq)]
+#[derive(Copy, Debug, Clone, PartialEq)] // pretty wild that rust can just derive these traits
 pub struct WeightedEdge<T> {
 	source: T, 
 	sink: T,
@@ -12,7 +12,7 @@ impl<T: Copy> WeightedEdge<T> {
 		WeightedEdge {
 			source,
 			sink,
-			weight: weight,
+			weight,
 		}
 	}
 
@@ -31,7 +31,7 @@ impl<T: Copy> WeightedEdge<T> {
 
 impl<T: fmt::Debug> fmt::Display for WeightedEdge<T> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "{:?} -- {} --> {:?}", self.source, self.weight, self.sink)
+		write!(f, "{:?} -- {:2} --> {:?}", self.source, self.weight, self.sink)
 	}
 }
 
@@ -43,7 +43,7 @@ mod test_weighted_edge {
 	fn test_format() {
 		let edge = WeightedEdge::new(1, 2, 1);
 		assert_eq!(format!("{}", edge), 
-		format!("{:?} -- {} --> {:?}",
+		format!("{:?} -- {:2} --> {:?}",
 			edge.get_source(),
 			edge.get_weight(),
 			edge.get_sink()

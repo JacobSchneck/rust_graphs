@@ -3,13 +3,38 @@ use crate::weighted_edge::WeightedEdge;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use priority_queue::PriorityQueue;
+use core::cmp::max;
+
+use std::fmt;
+
+// Consider anding parent that tracks the path taken? Could also just use hashmap
+pub struct Node<T> {
+	id: T,
+	weight: u32
+}
+
+impl<T> Node<T> {
+	pub fn new(id: T, weight: u32) -> Self {
+		Node {
+			id,
+			weight,
+		}
+	}
+}
+
+impl<T: fmt::Debug> fmt::Display for Node<T> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{:?} : {}", self.id, self.weight)
+	}
+}
 
 pub struct WeightedGraph<T> {
 	adjacency_list: HashMap<T, Vec<WeightedEdge::<T>>>,
 }
 
 impl<T> WeightedGraph<T> 
-where T: std::cmp::Eq + std::hash::Hash + Copy {
+where T: std::cmp::Eq + std::hash::Hash + Copy + std::fmt::Debug {
 	pub fn new() -> WeightedGraph<T> {
 		WeightedGraph {
 			adjacency_list: HashMap::new()
@@ -88,6 +113,57 @@ where T: std::cmp::Eq + std::hash::Hash + Copy {
 		result
 	}
 
+	// Made a reverse dijstrka's algorithm (longes path to each node) for lulz
+	pub fn reverse_dijkstra(&self, start: T) -> HashMap<T, u32> {
+		let mut result = HashMap::new();
+		if self.adjacency_list.get(&start).is_none() {
+			return result;
+		}
+
+		let mut queue = PriorityQueue::<T, u32>::new();
+		queue.push(start, 0);
+
+		while queue.len() != 0 {
+			let (node, weight) = queue.pop().unwrap();
+
+			let node_weight = result.entry(node).or_insert(weight);
+			*node_weight = weight;
+
+			if let Some(adj_edges) = self.adjacency_list.get(&node) {
+				for edge in adj_edges {
+					match queue.get(&edge.get_sink()) {
+						Some(_) => {
+							let old_priority = queue.get_priority(&edge.get_sink()).unwrap();
+							let new_priority = edge.get_weight() + weight;
+							queue.change_priority(&edge.get_sink(), max(*old_priority, new_priority)); 
+
+						}
+						None => {
+							queue.push(edge.get_sink(), edge.get_weight() + weight);
+						}
+					}
+				}
+			}
+		}
+
+		result
+		// println!("len {}", result.len());
+	}
+}
+
+impl<T: fmt::Debug + Eq + std::hash::Hash> fmt::Display for WeightedGraph<T> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		// Probably would give a Senior Engineer an migraine 
+		Ok(for key in self.adjacency_list.keys() {
+			write!(f, "{:?}:\n", key);	
+			let vals = self.adjacency_list.get(key).unwrap();
+			for val in vals {
+				write!(f, "{}\n", val);
+			}
+			write!(f, "\n");
+		})
+		// write!(f, "{:#?}", self.adjacency_list)
+	}
 }
 
 
@@ -142,5 +218,32 @@ mod test_weighted_graph {
 		g.add_edge(edge4);
 		assert_eq!(g.dfs(1), [1, 2, 4, 3]);
 		assert_eq!(g.dfs(6), []);
+	}
+
+	#[test]
+	fn reverse_dijkstra() {
+		let edge1 = WeightedEdge::new(1, 2, 1);
+		let edge2 = WeightedEdge::new(1, 3, 1);
+		let edge3 = WeightedEdge::new(2, 4, 1);
+		let edge4 = WeightedEdge::new(3, 4, 1);
+
+		let mut g = WeightedGraph::new();
+		g.add_edge(edge1);
+		g.add_edge(edge2);
+		g.add_edge(edge3);
+		g.add_edge(edge4);
+		g.reverse_dijkstra(1);
+		let mut rhs = HashMap::<i32, u32>::new();
+		rhs.insert(1, 0);
+		rhs.insert(2, 1);
+		rhs.insert(3, 1);
+		rhs.insert(4, 2);
+		assert_eq!(g.reverse_dijkstra(1), rhs);
+		rhs.clear();
+		assert_eq!(g.reverse_dijkstra(4), rhs);
+		assert_eq!(g.reverse_dijkstra(6), rhs);
+		rhs.insert(3, 0);
+		rhs.insert(4, 1);
+		assert_eq!(g.reverse_dijkstra(3), rhs);
 	}
 }
